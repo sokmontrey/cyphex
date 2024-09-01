@@ -1,15 +1,16 @@
 <script lang="ts">
-	import ImageInput from '$lib/components/ImageInput.svelte';
-	import SettingInput from '$lib/components/SettingInput.svelte';
+	import { Img } from '$lib/utils/image';
+	import { textToByte } from '$lib/utils/text';
+	import { splitBytes } from '$lib/utils/byte';
 
-	let input_img_data: ImageData | null = null;
-	$: input_size = input_img_data ? 3 * input_img_data.width * input_img_data.height : 0;
-	$: available_payload_size = input_size;
+	const payload_raw = textToByte('Hello World');
+	const payload_splited = splitBytes(payload_raw, 3);
 
-	let method = 'lsb';
-
-	let payload_type = 'image';
-	let payload_data: ImageData | string | null = null;
+	async function handleFile(e: any) {
+		const file = e.target.files[0];
+		const img = await Img.fromFile(file);
+		img.decode();
+	}
 </script>
 
 <svelte:head>
@@ -17,42 +18,5 @@
 </svelte:head>
 
 <div>
-	<p class="inline">Input Image:</p>
-	<ImageInput bind:img_data={input_img_data} />
-</div>
-
-<div>
-	<p class="inline">Method:</p>
-	<select bind:value={method}>
-		<option value="lsb">LSB (Least Significant Bit)</option>
-	</select>
-</div>
-
-<div>
-	<p class="inline">Setting:</p>
-	<SettingInput bind:value />
-</div>
-
-<div>
-	<p class="inline">Payload Type:</p>
-	<select bind:value={payload_type}>
-		<option value="image">Image</option>
-		<option value="text">Text</option>
-	</select>
-</div>
-
-{#if input_img_data}
-	<div>
-		<p>Input size: {input_size} bytes</p>
-		<p>Available payload size: {available_payload_size} bytes ()</p>
-	</div>
-{/if}
-
-<div>
-	<p class="inline">Payload:</p>
-	{#if payload_type === 'image'}
-		<ImageInput bind:img_data={payload_data} />
-	{:else if payload_type === 'text'}
-		<input bind:value={payload_data} />
-	{/if}
+	<input type="file" on:change={handleFile} />
 </div>
