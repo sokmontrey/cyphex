@@ -33,7 +33,6 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"jpeg-js": "^0.4.4",
-		"upng-js": "^2.1.0"
+		"fast-png": "^6.2.0"
 	}
 }
