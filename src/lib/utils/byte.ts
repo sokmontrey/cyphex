@@ -1,13 +1,15 @@
-export function createMask(n: number) {
+import { type Result } from '$lib/utils/functional';
+
+export const createMask = (n: number) => {
 	return (1 << n) - 1;
 }
 
-export function splitBytes(byte_arr: Uint8Array, bits_per_chunk: number): Uint8Array {
-	const num_bits = byte_arr.length * 8;
-	const num_chunks = Math.ceil(num_bits / bits_per_chunk);
-	const result = new Uint8Array(num_chunks);
+export const splitBytes = (bits_per_chunk: number) => (byte_arr: Uint8Array): Uint8Array => {
+	const total_bits = byte_arr.length * 8;
+	const total_chunks = Math.ceil(total_bits / bits_per_chunk);
 	const mask = createMask(bits_per_chunk);
 
+	const result = new Uint8Array(total_chunks);
 	let result_idx = 0;
 	let bit_buffer = 0;
 	let bit_count = 0;

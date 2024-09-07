@@ -1,34 +1,39 @@
 <script lang="ts">
-	import { decode, encode } from 'fast-png';
-	import { textToByte } from '$lib/utils/text';
-	import { splitBytes, createMask } from '$lib/utils/byte';
+	import { decodeImage, encodeImage, type ImageData } from '$lib/utils/image';
 
-	function apply(cover: Uint8ClampedArray, payload: string) {
-		const payload_raw = textToByte(payload);
-		const payload_splited = splitBytes(payload_raw, 3);
-		if (payload_splited.length > cover.length) throw new Error('Payload is too large');
-		const mask = createMask(3);
-		for (let i = 0; i < payload_splited.length; i++) {
-			cover[i] &= ~mask;
-			cover[i] |= payload_splited[i];
-		}
-		return cover;
-	}
+	import { stringToByte } from '$lib/utils/text';
+	import { splitBytes } from '$lib/utils/byte';
 
-	async function handleFile(e: any) {
-		const file = e.target.files[0];
-		const original_arr_buffer = await file.arrayBuffer();
-		const img = decode(original_arr_buffer);
-		apply(img.data as Uint8ClampedArray, 'Hello World');
-		const modified_arr_buffer = encode(img);
-		const blob = new Blob([modified_arr_buffer], { type: 'image/png' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = 'something.png';
-		a.click();
-		a.remove();
-	}
+	import { getFileFromTarget, checkSupportedImageType, getImageArrayBuffer } from '$lib/utils/file';
+	import { pipeAsync_, bind_, log_, map_, resultToMessage } from '$lib/utils/functional';
+
+	const handleFile = async (e: InputEvent) => {
+		const target = e.target as HTMLInputElement;
+
+		const message = await pipeAsync_(
+			//
+			getFileFromTarget,
+			bind_(checkSupportedImageType),
+			bind_(getImageArrayBuffer),
+			bind_(decodeImage),
+			// bind_(apply('Hello world')),
+			log_('test'),
+			resultToMessage('Successfully apply payload to the image')
+		)(target);
+
+		console.log(message);
+
+		// const modified_img = apply(img_data, 'Hello World');
+		// const modified_arr_buffer = encodeImage(modified_img);
+		//
+		// const blob = new Blob([modified_arr_buffer], { type: 'image/png' });
+		// const url = URL.createObjectURL(blob);
+		// const a = document.createElement('a');
+		// a.href = url;
+		// a.download = 'something.png';
+		// a.click();
+		// a.remove();
+	};
 </script>
 
 <svelte:head>
