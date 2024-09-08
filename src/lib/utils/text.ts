@@ -1,7 +1,7 @@
 import { ErrorCode } from '$lib/utils/error';
 import { type Result, success, failure } from '$lib/utils/functional';
 
-export const stringToByte = (str: string): Result<Uint8Array> => {
+export const stringToBytes = (str: string): Result<Uint8Array> => {
 	if (str === "") return failure(ErrorCode.TextCannotBeEmpty);
 
 	try {
@@ -11,7 +11,7 @@ export const stringToByte = (str: string): Result<Uint8Array> => {
 	}
 }
 
-export const byteToString = (arr: Uint8Array): Result<string> => {
+export const bytesToString = (arr: Uint8Array): Result<string> => {
 	try {
 		return success(new TextDecoder().decode(arr));
 	} catch (e) {

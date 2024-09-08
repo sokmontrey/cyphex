@@ -9,21 +9,44 @@ export interface ImageData extends DecodedPng {
 	colorSpace: string;
 }
 
-export function decodeImage(array_buffer: ArrayBuffer): Result<ImageData> {
-	try {
-		const img_data = decode(array_buffer) as ImageData;
-		img_data.colorSpace = 'srgb';
-		return success(img_data);
-	} catch (e) {
-		return failure(ErrorCode.UnableToReadImageData);
-	}
-}
+export const decodeImage
+	= (array_buffer: ArrayBuffer): Result<ImageData> => {
+		try {
+			const img_data = decode(array_buffer) as ImageData;
+			img_data.colorSpace = 'srgb';
+			return success(img_data);
+		} catch (e: any) {
+			return failure(ErrorCode.UnableToReadImageData, "", e);
+		}
+	};
 
-export async function encodeImage(image_data: ImageData) {
-	try {
-		const array_buffer = encode(image_data);
-		return success(array_buffer);
-	} catch (e) {
-		return failure(ErrorCode.UnableToWriteImageData);
-	}
-}
+export const encodeImage
+	= (image_data: ImageData): Result<ArrayBuffer> => {
+		try {
+			const array_buffer = encode(image_data).buffer;
+			return success(array_buffer);
+		} catch (e: any) {
+			return failure(ErrorCode.UnableToWriteImageData, "", e);
+		}
+	};
+
+export const toBlob
+	= (img_array_buffer: ArrayBuffer): Result<Blob> => {
+		try {
+			const blob = new Blob([img_array_buffer], { type: 'image/png' });
+			return success(blob);
+		} catch (e: any) {
+			return failure(ErrorCode.UnableToCreateFile, "", e);
+		}
+	};
+
+export const downloadImage
+	= (file_name: string) =>
+		(blob: Blob): void => {
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = file_name + '.png';
+			a.click();
+			a.remove();
+		};

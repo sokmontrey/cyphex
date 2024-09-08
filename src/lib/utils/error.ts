@@ -7,10 +7,10 @@ export enum ErrorCode {
 	UnableToDecodeText,
 	TextCannotBeEmpty,
 	PayloadTooLarge,
+	UnableToCreateFile,
 };
 
-export const createErrorMessage = (err_code: ErrorCode, additional_msg: string): string => {
-	const value = additional_msg;
+export const createErrorMessage = (err_code: ErrorCode, value: string): string => {
 	switch (err_code) {
 		/* 
 		 * Dealing with images 
@@ -26,6 +26,8 @@ export const createErrorMessage = (err_code: ErrorCode, additional_msg: string):
 			return `Unsupported file type: ${value}`;
 		case ErrorCode.NoFileSelected:
 			return `No file selected`;
+		case ErrorCode.UnableToCreateFile:
+			return `Unable to create file`;
 		/* 
 		 * Dealing with text
 		 */
