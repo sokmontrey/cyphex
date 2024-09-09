@@ -1,7 +1,26 @@
 import { ErrorCode } from '$lib/utils/error';
-import { type Result, failure, success, pipe_, ResultWrapper_, ResultAdapter_, log_ } from '$lib/utils/functional';
+import { type Result, failure, success, createPipe_, ResultWrapper_, ResultAdapter_, log_ } from '$lib/utils/functional';
+import { createMask, concatUint8Array } from '$lib/utils/steg';
 
-const createMask = (n: number) => (1 << n) - 1;
+export const apply
+	= (lsb_value: number, payload: Uint8Array, payload_terminator: Uint8Array) =>
+		(cover_data: Uint8ClampedArray): Result<ImageData> => {
+			return createPipe_(
+				ResultWrapper_(concatUint8Array(payload_terminator)),
+				ResultAdapter_(splitBytes(lsb_value)),
+				ResultAdapter_(checkPayloadSize(cover_data, lsb_value)),
+				ResultWrapper_(replaceCoverData(cover_data, lsb_value)),
+			)(success(payload));
+		};
+
+export const extract
+	= (lsb_value: number, payload_terminator: Uint8Array) =>
+		(cover_data: Uint8ClampedArray): Result<Uint8Array> => {
+			return createPipe_(
+				extractMaskedBits(lsb_value, payload_terminator),
+				success,
+			)(cover_data);
+		};
 
 const splitBytes = (bits_per_chunk: number) =>
 	(byte_arr: Uint8Array): Result<Uint8Array> => {
@@ -54,7 +73,7 @@ const replaceCoverData = (cover_data: Uint8ClampedArray, lsb_value: number) =>
 		return cover_data;
 	}
 
-const extractMaskedBits = (bits_per_chunk: number) =>
+const extractMaskedBits = (bits_per_chunk: number, payload_terminator: Uint8Array) =>
 	(byte_arr: Uint8ClampedArray): Uint8Array => {
 		const mask = createMask(bits_per_chunk);
 		const total_bits = byte_arr.length * bits_per_chunk;
@@ -65,35 +84,27 @@ const extractMaskedBits = (bits_per_chunk: number) =>
 		let bit_buffer = 0;
 		let bit_count = 0;
 
+		let terminator_idx = 0;
+		let total_size = 0;
+
 		for (let i = 0; i < byte_arr.length; i++) {
 			bit_buffer <<= bits_per_chunk;
 			bit_buffer |= byte_arr[i] & mask;
 			bit_count += bits_per_chunk;
 			if (bit_count >= 8) {
-				result[result_idx++] = bit_buffer & 0xff;
+				const byte = bit_buffer & 0xff;
+				result[result_idx++] = byte;
 				bit_buffer >>= 8;
 				bit_count -= 8;
+				total_size++;
+				if (payload_terminator[terminator_idx] === byte) {
+					terminator_idx++;
+					if (terminator_idx === payload_terminator.length) break;
+				} else {
+					terminator_idx = 0;
+				}
 			}
 		}
 
-		return result;
+		return result.subarray(0, total_size - payload_terminator.length);
 	};
-
-export const apply
-	= (lsb_value: number, payload: Uint8Array) =>
-		(cover_data: Uint8ClampedArray): Result<ImageData> => {
-			return pipe_(
-				splitBytes(lsb_value),
-				ResultAdapter_(checkPayloadSize(cover_data, lsb_value)),
-				ResultWrapper_(replaceCoverData(cover_data, lsb_value)),
-			)(payload);
-		};
-
-export const extract
-	= (lsb_value: number) =>
-		(cover: ImageData): Result<Uint8Array> => {
-			return pipe_(
-				extractMaskedBits(lsb_value),
-				success,
-			)(cover.data);
-		};

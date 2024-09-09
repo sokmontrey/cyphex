@@ -10,14 +10,15 @@ export const failure = (err_code: ErrorCode, additional_msg: string = "", e: Err
 	({ is_ok: false, err_code, e, value: additional_msg });
 
 const _reduced = (f: Function, g: Function): Function => (arg: any) => g(f(arg));
-export const pipe_ = (...fns: Array<Function>): Function => fns.reduce(_reduced);
+
+export const createPipe_ = (...fns: Array<Function>): Function => fns.reduce(_reduced);
 
 const _reducedAsync = (f: Function, g: Function): Function => async (arg: any) => {
 	const result = await f(arg);
 	return g(result);
 };
 
-export const pipeAsync_ = (...fns: Array<Function>): Function =>
+export const createAsyncPipe_ = (...fns: Array<Function>): Function =>
 	(arg: any) => fns.reduce(_reducedAsync, (arg: any) => arg)(arg);
 
 export const ResultAdapter_
@@ -44,6 +45,10 @@ export const ImageDataWrapper_
 			}
 			return result;
 		};
+
+export const ImageDataAdapter_
+	= (f: Function) =>
+		(image_data: ImageData): Result<any> => f(image_data.data);
 
 export const SkipIfFailure_
 	= (external_input: Result<any>) =>

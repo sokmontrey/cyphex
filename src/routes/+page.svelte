@@ -1,13 +1,13 @@
 <script lang="ts">
 	import {
-		pipe_,
-		pipeAsync_,
+		createAsyncPipe_,
 		ResultAdapter_,
 		ResultWrapper_,
 		log_,
 		SuccessCallback_,
 		DeadEndResultWrapper_,
 		ImageDataWrapper_,
+		ImageDataAdapter_,
 		SkipIfFailure_,
 		resultToMessage,
 		type Result
@@ -17,46 +17,63 @@
 	import { stringToBytes, bytesToString } from '$lib/utils/text';
 	import { apply, extract } from '$lib/steg_methods/lsb';
 
+	/**
+	 * Terms:
+	 *		cover: the image that the payload will be hidden in
+	 *		payload: the data that will be hidden in the cover
+	 * TODO: instead of using terminator, create a structure with defined size to explain the payload
+	 */
+
 	let mode: 'apply' | 'extract' = 'apply';
 	let payload: string = '';
 	let lsb_count: number = 4;
 	let message: string = '';
 
+	const PAYLOAD_TERMINATOR = stringToBytes('$$END$$').value as Uint8Array;
+
 	const handleFile = async (e: InputEvent) => {
 		const target = e.target as HTMLInputElement;
 
-		const payload_pl_result: Result<Uint8Array> = await pipe_(stringToBytes)(payload);
+		// can handle different types of payload
+		const payloadToBytesPipeline = stringToBytes;
+		const bytesToPayloadPipeline = bytesToString;
 
-		const apply_func = apply(lsb_count, payload_pl_result.value as Uint8Array);
-		const extract_func = extract(lsb_count);
-
-		const cover_pl_result: Result<ImageData> = await pipeAsync_(
+		const coverToBytesPipeline = createAsyncPipe_(
 			getFileFromTarget,
 			ResultAdapter_(checkSupportedImageType),
 			ResultAdapter_(getImageArrayBuffer),
 			ResultAdapter_(decodeImage)
-		)(target);
-
-		const apply_pl = pipeAsync_(
-			SkipIfFailure_(payload_pl_result),
-			ResultAdapter_(ImageDataWrapper_(apply_func)),
-			ResultAdapter_(encodeImage),
-			ResultAdapter_(toBlob),
-			DeadEndResultWrapper_(downloadImage('cyphex.png')),
-			resultToMessage('Successfully apply payload to the image')
 		);
 
-		const extract_pl = pipeAsync_(
-			ResultAdapter_(extract_func),
-			ResultAdapter_(bytesToString),
-			SuccessCallback_((result: any) => (payload = result)),
-			resultToMessage('Successfully extract payload from the image')
-		);
+		const payload_pl_result: Result<Uint8Array> = payloadToBytesPipeline(payload);
+		const cover_pl_result: Result<ImageData> = await coverToBytesPipeline(target);
+
+		// can be switch to a different steg method
+		const applyFunc = apply(lsb_count, payload_pl_result.value as Uint8Array, PAYLOAD_TERMINATOR);
+		const extractFunc = extract(lsb_count, PAYLOAD_TERMINATOR);
+
+		// the payload might be an image
+		// handle it accordingly
+		const extractionDisplayFunc = (result_value: any) => {
+			payload = result_value;
+		};
 
 		if (mode === 'apply') {
-			message = await apply_pl(cover_pl_result);
+			message = await createAsyncPipe_(
+				SkipIfFailure_(payload_pl_result),
+				ResultAdapter_(ImageDataWrapper_(applyFunc)),
+				ResultAdapter_(encodeImage),
+				ResultAdapter_(toBlob),
+				DeadEndResultWrapper_(downloadImage('cyphex.png')),
+				resultToMessage('Successfully apply payload to the image')
+			)(cover_pl_result);
 		} else {
-			message = await extract_pl(cover_pl_result);
+			message = await createAsyncPipe_(
+				ResultAdapter_(ImageDataAdapter_(extractFunc)),
+				ResultAdapter_(bytesToPayloadPipeline),
+				SuccessCallback_(extractionDisplayFunc),
+				resultToMessage('Successfully extract payload from the image')
+			)(cover_pl_result);
 		}
 	};
 
