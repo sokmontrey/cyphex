@@ -14,9 +14,9 @@ export const checkSupportedImageType = (file: File): Result<File> => {
 };
 
 export const getFileFromTarget = (target: HTMLInputElement): Result<File> => {
+	if (!target) return failure(ErrorCode.NoFileSelected)
 	const files = target.files;
-	if (files === null || files.length === 0)
-		return failure(ErrorCode.NoFileSelected)
+	if (files === null || files.length === 0) return failure(ErrorCode.NoFileSelected)
 	const file = files[0];
 	return success(file);
 };

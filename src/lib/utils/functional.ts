@@ -66,3 +66,7 @@ export const resultToMessage = (succes_msg: string) => (result: Result<any>): st
 		return createErrorMessage(result.err_code, result.value);
 	}
 };
+
+export const IsOk_
+	= (f: Function) =>
+		(input: Result<any>) => { f(input.is_ok); return input; };

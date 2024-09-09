@@ -1,11 +1,12 @@
 import { ErrorCode } from '$lib/utils/error';
-import { type Result, failure, success, createPipe_, ResultWrapper_, ResultAdapter_, log_ } from '$lib/utils/functional';
+import { type Result, failure, success, createPipe_, ResultWrapper_, SkipIfFailure_, ResultAdapter_, log_ } from '$lib/utils/functional';
 import { createMask, concatUint8Array } from '$lib/utils/steg';
 
 export const apply
 	= (lsb_value: number, payload: Uint8Array, payload_terminator: Uint8Array) =>
 		(cover_data: Uint8ClampedArray): Result<ImageData> => {
 			return createPipe_(
+				SkipIfFailure_(checkLSBValue(lsb_value)),
 				ResultWrapper_(concatUint8Array(payload_terminator)),
 				ResultAdapter_(splitBytes(lsb_value)),
 				ResultAdapter_(checkPayloadSize(cover_data, lsb_value)),
@@ -17,10 +18,17 @@ export const extract
 	= (lsb_value: number, payload_terminator: Uint8Array) =>
 		(cover_data: Uint8ClampedArray): Result<Uint8Array> => {
 			return createPipe_(
-				extractMaskedBits(lsb_value, payload_terminator),
-				success,
-			)(cover_data);
+				SkipIfFailure_(checkLSBValue(lsb_value)),
+				ResultAdapter_(extractMaskedBits(lsb_value, payload_terminator)),
+			)(success(cover_data));
 		};
+
+const checkLSBValue
+	= (lsb_value: number): Result<number> => {
+		return (Number.isInteger(lsb_value) && lsb_value > 0 && lsb_value <= 8)
+			? success(lsb_value)
+			: failure(ErrorCode.InvalidLSBValue);
+	}
 
 const splitBytes = (bits_per_chunk: number) =>
 	(byte_arr: Uint8Array): Result<Uint8Array> => {
@@ -74,7 +82,7 @@ const replaceCoverData = (cover_data: Uint8ClampedArray, lsb_value: number) =>
 	}
 
 const extractMaskedBits = (bits_per_chunk: number, payload_terminator: Uint8Array) =>
-	(byte_arr: Uint8ClampedArray): Uint8Array => {
+	(byte_arr: Uint8ClampedArray): Result<Uint8Array> => {
 		const mask = createMask(bits_per_chunk);
 		const total_bits = byte_arr.length * bits_per_chunk;
 		const total_bytes = Math.ceil(total_bits / 8);
@@ -86,6 +94,7 @@ const extractMaskedBits = (bits_per_chunk: number, payload_terminator: Uint8Arra
 
 		let terminator_idx = 0;
 		let total_size = 0;
+		let is_correctly_terminated = false;
 
 		for (let i = 0; i < byte_arr.length; i++) {
 			bit_buffer <<= bits_per_chunk;
@@ -99,12 +108,19 @@ const extractMaskedBits = (bits_per_chunk: number, payload_terminator: Uint8Arra
 				total_size++;
 				if (payload_terminator[terminator_idx] === byte) {
 					terminator_idx++;
-					if (terminator_idx === payload_terminator.length) break;
+					if (terminator_idx === payload_terminator.length) {
+						is_correctly_terminated = true;
+						break;
+					}
 				} else {
 					terminator_idx = 0;
 				}
 			}
 		}
 
-		return result.subarray(0, total_size - payload_terminator.length);
+		if (!is_correctly_terminated) {
+			return failure(ErrorCode.TerminatorNotFound);
+		} else {
+			return success(result.subarray(0, total_size - payload_terminator.length));
+		}
 	};

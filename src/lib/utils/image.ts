@@ -42,11 +42,16 @@ export const toBlob
 
 export const downloadImage
 	= (file_name: string) =>
-		(blob: Blob): void => {
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = file_name + '.png';
-			a.click();
-			a.remove();
+		(blob: Blob): Result<string> => {
+			try {
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url;
+				a.download = file_name + '.png';
+				a.click();
+				a.remove();
+				return success(url);
+			} catch (e) {
+				return failure(ErrorCode.UnableToDownloadFile);
+			}
 		};

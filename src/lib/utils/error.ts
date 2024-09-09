@@ -8,6 +8,9 @@ export enum ErrorCode {
 	TextCannotBeEmpty,
 	PayloadTooLarge,
 	UnableToCreateFile,
+	InvalidLSBValue,
+	UnableToDownloadFile,
+	TerminatorNotFound,
 };
 
 export const createErrorMessage = (err_code: ErrorCode, value: string): string => {
@@ -25,9 +28,11 @@ export const createErrorMessage = (err_code: ErrorCode, value: string): string =
 		case ErrorCode.UnsupportedFileType:
 			return `Unsupported file type: ${value}`;
 		case ErrorCode.NoFileSelected:
-			return `No file selected`;
+			return `No file selected. Please select an image file (png).`;
 		case ErrorCode.UnableToCreateFile:
 			return `Unable to create file`;
+		case ErrorCode.UnableToDownloadFile:
+			return `Unable to download file`;
 		/* 
 		 * Dealing with text
 		 */
@@ -36,12 +41,16 @@ export const createErrorMessage = (err_code: ErrorCode, value: string): string =
 		case ErrorCode.UnableToDecodeText:
 			return `Unable to decode text: ${value}`;
 		case ErrorCode.TextCannotBeEmpty:
-			return `Text cannot be empty`;
+			return `Payload text cannot be empty`;
 		/* 
 		 * Dealing with LSB steganography method
 		 */
 		case ErrorCode.PayloadTooLarge:
 			return `Payload too large: ${value}`;
+		case ErrorCode.InvalidLSBValue:
+			return `Invalid LSB value (must be an integer from 1 to 8)`;
+		case ErrorCode.TerminatorNotFound:
+			return `Terminator not found. This image may not have any payload or the setting is incorrect.`
 		default:
 			return `Unexpected error occurred`;
 	}
