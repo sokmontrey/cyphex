@@ -37,7 +37,7 @@
 
 <section>
 	<SubHeading text={'Payload'} />
-	<p class="inp-lbl">Type:</p>
+	<p class="inp-lbl">Type:&nbsp;</p>
 	<button class="pm-btn mb-5" on:click={changePayloadType}>
 		{type === 'text' ? 'TEXT' : 'IMAGE'}
 	</button>
