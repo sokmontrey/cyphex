@@ -70,8 +70,8 @@ const checkPayloadSize = (cover: Uint8ClampedArray, lsb_value: number) =>
 		// convert payload and cover size (byte) to KB 
 		// and create an informative error message
 		const payload_size = (payload.length / 1000).toFixed(2);
-		const max_size_allowed = Math.floor(lsb_value * cover.length / 8);
-		const error_msg = `Max size allowed: ${max_size_allowed} KB. Recieved a payload of ${payload_size} KB.`;
+		const max_size_allowed = Math.floor(lsb_value * cover.length / 8000);
+		const error_msg = `Max size allowed: ${payload.length} . Recieved a payload of ${cover.length} .`;
 		return failure(ErrorCode.PayloadTooLarge, error_msg);
 	};
 

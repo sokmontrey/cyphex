@@ -1,230 +1,128 @@
 <script lang="ts">
+	import { type Result } from '$lib/utils/functional';
 	import {
 		createAsyncPipe_,
-		ResultAdapter_,
-		ResultWrapper_,
-		log_,
-		IsOk_,
-		SuccessCallback_,
-		DeadEndResultWrapper_,
-		ImageDataWrapper_,
-		ImageDataAdapter_,
 		SkipIfFailure_,
+		ImageDataAdapter_,
+		ImageDataWrapper_,
+		ResultAdapter_,
+		IsOk_,
 		resultToMessage,
-		type Result
+		failure
 	} from '$lib/utils/functional';
-	import { decodeImage, encodeImage, downloadImage, toBlob } from '$lib/utils/image';
-	import { getFileFromTarget, checkSupportedImageType, getImageArrayBuffer } from '$lib/utils/file';
-	import { stringToBytes, bytesToString } from '$lib/utils/text';
-	import { apply, extract } from '$lib/steg_methods/lsb';
-	import { imageDecodePipeline } from '$lib/utils/pipeline';
+	import { type ImageData } from 'fast-png';
+	import { stringToBytes } from '$lib/utils/text';
+	import { encodeImage, toBlob, downloadImage } from '$lib/utils/image';
 
-	/**
-	 * Terms:
-	 *		cover: the image that the payload will be hidden in
-	 *		payload: the data that will be hidden in the cover
-	 * TODO: instead of using terminator, create a structure with defined size to explain the payload
-	 */
+	import type { Methods } from '$lib/steg_methods/methods';
+	import { getApplyPipeline, getExtractPipeline } from '$lib/steg_methods/methods';
 
-	const info = {
-		apply: 'Hiding payloads inside an image.',
-		extract: 'Extracting payloads from an image (previously applied using this tool).'
-	};
+	import { ErrorCode } from '$lib/utils/error';
+
+	import SubHeading from '$lib/components/SubHeading.svelte';
+	import Method from '$lib/components/Method.svelte';
+	import SettingManager from '$lib/components/SettingManager.svelte';
+	import ImageInput from '$lib/components/ImageInput.svelte';
+	import ApplyPayload from '$lib/components/ApplyPayload.svelte';
+	import ExtractPayload from '$lib/components/ExtractPayload.svelte';
+	import Info from '$lib/components/Info.svelte';
 
 	let mode: 'apply' | 'extract' = 'apply';
+	let method: Methods = 'lsb';
+	let settings: any = [];
 
-	let payload_type: 'text' | 'image' = 'text';
-	let payload: string = '';
-	let lsb_count: number = 4; // make a setting object for a more general method setting
+	let cover_image_data_result: Result<ImageData> = failure(ErrorCode.CoverImageIsNotSelected);
+	let apply_payload_result: Result<Uint8Array> = failure(ErrorCode.PayloadImageIsNotSelected);
+	let extract_payload_result: Result<Uint8Array>;
 
+	let result: Result<any>;
 	let is_ok: boolean = false;
-	let message: string = '';
-
-	let cover_file_target: HTMLInputElement;
-	let cover_img_url: string = '';
+	let message: string;
 
 	const PAYLOAD_TERMINATOR = stringToBytes('$$END$$').value as Uint8Array;
 
-	const showImage = (file: File) => {
-		const reader = new FileReader();
-		reader.onload = () => {
-			const result = reader.result;
-			if (typeof result !== 'string') return;
-			cover_img_url = reader.result as string;
-		};
-		reader.readAsDataURL(file);
-	};
-
-	const handleFile = async (e: InputEvent) => {
-		cover_file_target = e.target as HTMLInputElement;
-		if (!cover_file_target) return;
-		if (!cover_file_target.files) return;
-		if (cover_file_target.files.length === 0) return;
-		showImage(cover_file_target.files[0]);
-	};
-
 	const submit = async () => {
-		// can handle different types of payload
-		const payloadToBytesPipeline = stringToBytes;
-		const bytesToPayloadPipeline = bytesToString;
-
-		const payload_pl_result: Result<Uint8Array> = payloadToBytesPipeline(payload);
-		const payload_bytes = payload_pl_result.value as Uint8Array;
-		const image_cover_pl_result: Result<ImageData> = await imageDecodePipeline(cover_file_target);
-
-		// the payload might be an image
-		// handle it accordingly
-		const extractionDisplayFunc = (result_value: any) => {
-			payload = result_value;
-		};
-
-		const mainPipeline =
-			mode === 'apply'
-				? createAsyncPipe_(
-						SkipIfFailure_(payload_pl_result),
-						ResultAdapter_(ImageDataWrapper_(apply(lsb_count, payload_bytes, PAYLOAD_TERMINATOR))),
-						ResultAdapter_(encodeImage),
-						ResultAdapter_(toBlob),
-						ResultAdapter_(downloadImage('image.png')),
-						IsOk_((_is_ok: boolean) => (is_ok = _is_ok)),
-						resultToMessage('Successfully apply payload to the image')
-					)
-				: createAsyncPipe_(
-						ResultAdapter_(ImageDataAdapter_(extract(lsb_count, PAYLOAD_TERMINATOR))),
-						ResultAdapter_(bytesToPayloadPipeline),
-						SuccessCallback_(extractionDisplayFunc),
-						IsOk_((_is_ok: boolean) => (is_ok = _is_ok)),
-						resultToMessage('Successfully extract payload from the image')
-					);
-
-		message = await mainPipeline(image_cover_pl_result);
+		if (mode === 'apply') {
+			if (!apply_payload_result.is_ok) {
+				result = apply_payload_result;
+				return;
+			}
+			const payload_bytes = apply_payload_result.value as Uint8Array;
+			const apply_pipeline = getApplyPipeline(method, settings, payload_bytes, PAYLOAD_TERMINATOR);
+			message = await createAsyncPipe_(
+				//apply
+				SkipIfFailure_(apply_payload_result),
+				ResultAdapter_(ImageDataWrapper_(apply_pipeline)),
+				ResultAdapter_(encodeImage),
+				ResultAdapter_(toBlob),
+				ResultAdapter_(downloadImage('applied')),
+				IsOk_((_is_ok: boolean) => (is_ok = _is_ok)),
+				resultToMessage('Successfully applied payload to the image.')
+			)(cover_image_data_result);
+		} else {
+			const extract_pipeline = getExtractPipeline(method, settings, PAYLOAD_TERMINATOR);
+			extract_payload_result = await createAsyncPipe_(
+				//extract
+				ResultAdapter_(ImageDataAdapter_(extract_pipeline))
+			)(cover_image_data_result);
+		}
 	};
 
-	const onModeChange = (e: InputEvent) => {
-		mode = mode === 'apply' ? 'extract' : 'apply';
-		payload = '';
-		message = '';
-	};
+	$: if (result) {
+		is_ok = result.is_ok;
+		message = resultToMessage('Successfully extracted payload from the image.')(result);
+	}
 
-	const switchPayloadType = () => {
-		payload_type = payload_type === 'text' ? 'image' : 'text';
+	const coverChanged = () => {
+		if (!cover_image_data_result.is_ok) {
+			result = cover_image_data_result;
+		}
 	};
 </script>
 
-<svelte:head>
-	<title>Cyphex</title>
-</svelte:head>
+<header>
+	<h1 class="text-2xl mr-10 inline">Cyphex</h1>
+	<a class="hover:text-blue-500 hover:underline" href="https://github.com/sokmontrey/cyphex"
+		><i class="fa-brands fa-github"></i> GitHub</a
+	>
+	<p class="text-gray-800">A simple stegonography tool for hiding information within an image.</p>
+	<p class="text-gray-800">NOTE: Cyphex only supports .png image at the moment.</p>
+</header>
 
-<div class="p-10 md:p-20">
-	<header>
-		<h1 class="text-2xl mr-10 inline">Cyphex</h1>
-		<a class="hover:text-teal-500" href="https://github.com/sokmontrey/cyphex"
-			><i class="fa-brands fa-github"></i> GitHub</a
-		>
-		<p>A simple stegonography tool for hiding information within an image.</p>
-		<p class="opacity-50">NOTE: Cyphex only supports .png image at the moment.</p>
-	</header>
+<hr class="my-10" />
 
-	<hr class="my-10" />
+<main>
+	<Method bind:mode bind:method />
+	<br />
+	<SettingManager bind:setting_values={settings} bind:mode bind:method />
 
-	<main>
-		<section class="mt-5 pl-4">
-			<div class="mb-4 flex">
-				<p class="border-l-2 border-zinc-300 pl-4">Method:</p>
-				<!--TODO: Integrate different methods here-->
-				<select
-					id="mode-btn"
-					class="outline-none mx-4 px-4 text-white bg-zinc-900 hover:bg-zinc-300 hover:text-zinc-900 transition-all duration-200 ease-in-out active:translate-y-1"
-				>
-					<option value="lsb">Least Significant Bit (LSB)</option>
-				</select>
-			</div>
-			<div class="mb-4 flex">
-				<p class="border-l-2 border-zinc-300 pl-4">Mode&nbsp;&nbsp;:</p>
-				<button
-					on:click={onModeChange}
-					id="mode-btn"
-					class="outline-none px-4 mx-4 px-4 text-white bg-zinc-900 hover:bg-zinc-300 hover:text-zinc-900 transition-all duration-200 ease-in-out active:translate-y-1"
-				>
-					{mode === 'apply' ? 'APPLY' : 'EXTRACT'}
-				</button>
-			</div>
+	<br />
+	<section>
+		<Info info="The image to cover up your hidden message">
+			<SubHeading text={'Cover'} />
+			<ImageInput bind:img_data={cover_image_data_result} onChange={coverChanged} />
+		</Info>
+	</section>
 
-			<p class="mb-4">
-				<i class="fa-solid fa-circle-info"></i>
-				{info[mode]}
-			</p>
-		</section>
+	<br />
 
-		<section class="mt-5">
-			<h2 class="text-xl">Settings</h2>
-			<div class="pt-4 flex pl-4">
-				<p class="inline border-l-2 border-zinc-300 pl-4">LSB value:</p>
-				<input
-					id="lsb-inp"
-					type="number"
-					min="1"
-					max="8"
-					step="1"
-					class="font-mono w-[90px] pl-2 outline-none mx-4 transition-all duration-200 ease-in-out"
-					bind:value={lsb_count}
-				/>
-			</div>
-		</section>
+	{#if mode === 'apply'}
+		<ApplyPayload bind:payload_to_apply={apply_payload_result} />
+	{:else}
+		<ExtractPayload extracted_payload={extract_payload_result} bind:result />
+	{/if}
 
-		<section class="mt-5 md:flex w-full">
-			<div class="flex-1">
-				<h2 class="text-xl">Cover Image</h2>
-				<div class="pl-4">
-					<input
-						type="file"
-						class="mt-4 file:text-white file:bg-zinc-900 file:hover:bg-zinc-300 file:hover:text-zinc-900 file:px-4 file:mr-4 file:transition-all file:duration-200 file:ease-in-out file:border-none outline-none"
-						on:change={handleFile}
-					/>
-					{#if cover_img_url}
-						<img src={cover_img_url} class=" mt-4 w-[200px]" alt="cover" />
-					{/if}
-				</div>
-			</div>
-			<div class="flex-1">
-				{#if mode === 'apply'}
-					<h2 class="text-xl">Payload</h2>
-					<div class="pl-4">
-						<p class="border-l-2 inline border-zinc-300 pl-4">Payload Type:</p>
-						<button
-							on:click={switchPayloadType}
-							class="px-4 text-white bg-zinc-900 hover:bg-zinc-300 hover:text-zinc-900 transition-all duration-200 ease-in-out active:translate-y-1"
-						>
-							{payload_type === 'image' ? 'Image' : 'Text'}
-						</button>
-						<br />
-						<textarea
-							bind:value={payload}
-							placeholder="Your message here..."
-							class="outline-none border-l-2 border-zinc-300 py-2 px-4 mt-4 w-full md:w-1/2"
-						/>
-					</div>
-				{/if}
+	<br />
 
-				{#if mode === 'extract'}
-					<p class="inline">Payload:</p>
-					{#if payload}
-						<p class="inline">{payload}</p>
-					{/if}
-				{/if}
-			</div>
-		</section>
-		<section class="mt-5">
-			<br />
+	{#if message}
+		<p class={is_ok ? 'text-green-600' : 'text-red-600'}>{message}</p>
+	{/if}
 
-			<p class={is_ok ? 'text-green-500' : 'text-red-500'}>{message}</p>
+	<Info info={!cover_image_data_result.is_ok ? 'Please select a cover image' : ''}>
+		<button class="pm-btn" on:click={submit} disabled={!cover_image_data_result.is_ok}>
+			{mode === 'apply' ? 'APPLY' : 'EXTRACT'}
+		</button>
+	</Info>
+</main>
 
-			<button
-				on:click={submit}
-				class="outline-none px-4 text-white bg-zinc-900 hover:bg-zinc-300 hover:text-zinc-900 transition-all duration-200 ease-in-out active:translate-y-1 mt-4"
-			>
-				{mode === 'apply' ? 'Apply' : 'Extract'}
-			</button>
-		</section>
-	</main>
-</div>
+<footer></footer>

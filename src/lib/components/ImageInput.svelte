@@ -6,6 +6,7 @@
 	import { decodeImage, getImageUrlFromFile } from '$lib/utils/image';
 
 	export let img_data: Result<ImageData>;
+	export let onChange: ((e: InputEvent) => void) | null = null;
 	let image_url: string;
 
 	const handleFile = async (e: InputEvent) => {
@@ -26,6 +27,8 @@
 		if (decode_result.is_ok && file !== undefined) {
 			image_url = await getImageUrlFromFile(file);
 		}
+
+		if (onChange) onChange(e);
 	};
 </script>
 

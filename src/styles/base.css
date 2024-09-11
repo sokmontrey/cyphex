@@ -22,6 +22,10 @@ body {
 	@apply outline-none px-4 py-1 text-white bg-zinc-900 hover:bg-zinc-300 hover:text-zinc-900 transition-all duration-200 ease-in-out active:translate-y-1;
 }
 
+.pm-btn:disabled, .pm-btn[disabled]{
+	@apply cursor-not-allowed bg-zinc-300 text-zinc-900;
+}
+
 .sd-btn{
 	@apply outline-none px-4 py-1 bg-white text-zinc-900 hover:text-zinc-300 hover:bg-zinc-900 transition-all duration-200 ease-in-out active:translate-y-1;
 }

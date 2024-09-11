@@ -32,7 +32,7 @@
 		<SubHeading text={'Mode:'} />
 
 		<Info info={mode_info[mode]}>
-			<button on:click={changeMode} class="outline-none sd-btn">
+			<button on:click={changeMode} class="outline-none pm-btn">
 				{mode === 'apply' ? 'APPLY' : 'EXTRACT'}
 			</button>
 		</Info>

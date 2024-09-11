@@ -5,7 +5,7 @@ import type { Result } from '$lib/utils/functional';
 import { success, failure, createPipe_, ResultWrapper_ } from '$lib/utils/functional';
 import { ErrorCode } from '$lib/utils/error';
 import { fail } from '@sveltejs/kit';
-import { insertStartUint8Array } from './steg';
+import { insertStartUint8Array, concatUint8Array } from './steg';
 import { bytesToString } from './text';
 
 export const decodeImage
@@ -85,6 +85,15 @@ export const getImageUrlFromFile
 		});
 	};
 
+const int32ToBytes = (num: number) => {
+	return new Uint8Array([
+		(num & 0xff000000) >> 24,
+		(num & 0x00ff0000) >> 16,
+		(num & 0x0000ff00) >> 8,
+		(num & 0x000000ff)
+	]);
+}
+
 export const payloadImageDataToBytes
 	= (image_data: ImageData): Result<Uint8Array> => {
 		if (!image_data)
@@ -94,14 +103,7 @@ export const payloadImageDataToBytes
 
 		const w = image_data.width;
 		const h = image_data.height;
-		// using 32 bits integer for width and height
-		const image_info = new Uint8Array((2 * 32) / 8);
-		// w32 = w4 w3 w2 w1 <- 8 bits each
-		// order: w4 w3 w2 w1 h4 h3 h2 h1
-		for (let i = 0; i < 4; i++) {
-			image_info[3 - i] = w >> (i * 8) && 0xff;
-			image_info[7 - i] = h >> (i * 8) && 0xff;
-		}
+		const image_info = concatUint8Array(int32ToBytes(h))(int32ToBytes(w));
 
 		return createPipe_(
 			getData,
@@ -116,17 +118,17 @@ export const bytesToPayloadImageData
 		let idx = 0;
 
 		for (let i = 0; i < 4; i++) {
-			width |= bytes[idx++];
-			width <<= 8;
+			width |= bytes[idx++] & 0xff;
+			if (i < 3) width <<= 8;
 		}
 		for (let i = 0; i < 4; i++) {
-			height |= bytes[idx++];
+			height |= bytes[idx++] & 0xff;
 			if (i < 3) height <<= 8;
 		}
 
 		if (bytes.length < 8) return failure(ErrorCode.PayloadIsNotAnImage);
 
-		const data = new Uint8Array(bytes.length - (2 * 32));
+		const data = new Uint8Array(bytes.length - 8);
 		data.set(bytes.slice(2 * 4));
 
 		const result: ImageData = {

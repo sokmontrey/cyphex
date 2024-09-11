@@ -1,4 +1,5 @@
 export enum ErrorCode {
+	CoverImageIsNotSelected,
 	UnableToReadImageData,
 	UnableToWriteImageData,
 	UnsupportedFileType,
@@ -13,6 +14,8 @@ export enum ErrorCode {
 	TerminatorNotFound,
 	InvalidPayloadImageDimension,
 	PayloadIsNotAnImage,
+	PayloadImageIsNotSelected,
+	UndefinedPayloadType,
 };
 
 export const createErrorMessage = (err_code: ErrorCode, value: string): string => {
@@ -24,6 +27,8 @@ export const createErrorMessage = (err_code: ErrorCode, value: string): string =
 			return `Unable to read image data`;
 		case ErrorCode.UnableToWriteImageData:
 			return `Unable to write image data`;
+		case ErrorCode.CoverImageIsNotSelected:
+			return `Please select a cover image.`;
 		/* 
 		 * Dealing with payload images 
 		 */
@@ -31,6 +36,10 @@ export const createErrorMessage = (err_code: ErrorCode, value: string): string =
 			return `Payload image dimensions are not valid.`;
 		case ErrorCode.PayloadIsNotAnImage:
 			return `Payload is not an image.`;
+		case ErrorCode.PayloadImageIsNotSelected:
+			return `Please select a payload image.`;
+		case ErrorCode.UndefinedPayloadType:
+			return `The image contain an unexpected type of payload.`;
 		/* 
 		 * Dealing with files
 		 */
