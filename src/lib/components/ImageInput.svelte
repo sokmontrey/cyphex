@@ -32,6 +32,7 @@
 	};
 </script>
 
+<p class="inp-lbl">Image:</p>
 <input type="file" class="file-inp" on:change={handleFile} />
 {#if image_url}
 	<img src={image_url} class=" mt-4 w-[200px]" alt="preview" />
