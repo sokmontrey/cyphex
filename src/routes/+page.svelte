@@ -17,6 +17,7 @@
 	import { getFileFromTarget, checkSupportedImageType, getImageArrayBuffer } from '$lib/utils/file';
 	import { stringToBytes, bytesToString } from '$lib/utils/text';
 	import { apply, extract } from '$lib/steg_methods/lsb';
+	import { imageDecodePipeline } from '$lib/utils/pipeline';
 
 	/**
 	 * Terms:
@@ -26,16 +27,20 @@
 	 */
 
 	const info = {
-		apply: 'Hiding payloads (texts) inside an image.',
+		apply: 'Hiding payloads inside an image.',
 		extract: 'Extracting payloads from an image (previously applied using this tool).'
 	};
 
 	let mode: 'apply' | 'extract' = 'apply';
+
+	let payload_type: 'text' | 'image' = 'text';
 	let payload: string = '';
 	let lsb_count: number = 4; // make a setting object for a more general method setting
-	let message: string = '';
+
 	let is_ok: boolean = false;
-	let file_target: HTMLInputElement;
+	let message: string = '';
+
+	let cover_file_target: HTMLInputElement;
 	let cover_img_url: string = '';
 
 	const PAYLOAD_TERMINATOR = stringToBytes('$$END$$').value as Uint8Array;
@@ -51,11 +56,11 @@
 	};
 
 	const handleFile = async (e: InputEvent) => {
-		file_target = e.target as HTMLInputElement;
-		if (!file_target) return;
-		if (!file_target.files) return;
-		if (file_target.files.length === 0) return;
-		showImage(file_target.files[0]);
+		cover_file_target = e.target as HTMLInputElement;
+		if (!cover_file_target) return;
+		if (!cover_file_target.files) return;
+		if (cover_file_target.files.length === 0) return;
+		showImage(cover_file_target.files[0]);
 	};
 
 	const submit = async () => {
@@ -63,16 +68,9 @@
 		const payloadToBytesPipeline = stringToBytes;
 		const bytesToPayloadPipeline = bytesToString;
 
-		const imageToBytePipeline = createAsyncPipe_(
-			getFileFromTarget,
-			ResultAdapter_(checkSupportedImageType),
-			ResultAdapter_(getImageArrayBuffer),
-			ResultAdapter_(decodeImage) // getting image data (pixel data) for manipulation
-		);
-
 		const payload_pl_result: Result<Uint8Array> = payloadToBytesPipeline(payload);
 		const payload_bytes = payload_pl_result.value as Uint8Array;
-		const image_cover_pl_result: Result<ImageData> = await imageToBytePipeline(file_target);
+		const image_cover_pl_result: Result<ImageData> = await imageDecodePipeline(cover_file_target);
 
 		// the payload might be an image
 		// handle it accordingly
@@ -107,6 +105,10 @@
 		payload = '';
 		message = '';
 	};
+
+	const switchPayloadType = () => {
+		payload_type = payload_type === 'text' ? 'image' : 'text';
+	};
 </script>
 
 <svelte:head>
@@ -120,18 +122,19 @@
 			><i class="fa-brands fa-github"></i> GitHub</a
 		>
 		<p>A simple stegonography tool for hiding information within an image.</p>
-		<p class="opacity-50 pl-8">NOTE: Cyphex only supports .png image at the moment.</p>
+		<p class="opacity-50">NOTE: Cyphex only supports .png image at the moment.</p>
 	</header>
 
+	<hr class="my-10" />
+
 	<main>
-		<section class="mt-5">
+		<section class="mt-5 pl-4">
 			<div class="mb-4 flex">
 				<p class="border-l-2 border-zinc-300 pl-4">Method:</p>
 				<!--TODO: Integrate different methods here-->
 				<select
 					id="mode-btn"
-					class="outline-none px-4 mx-4 transition-all duration-200 ease-in-out
-					bg-green-300 text-zinc-900 hover:text-white hover:bg-zinc-900"
+					class="outline-none mx-4 px-4 text-white bg-zinc-900 hover:bg-zinc-300 hover:text-zinc-900 transition-all duration-200 ease-in-out active:translate-y-1"
 				>
 					<option value="lsb">Least Significant Bit (LSB)</option>
 				</select>
@@ -141,7 +144,7 @@
 				<button
 					on:click={onModeChange}
 					id="mode-btn"
-					class="outline-none px-4 mx-4 transition-all duration-200 ease-in-out bg-lime-300 text-zinc-800 hover:text-white hover:bg-zinc-900"
+					class="outline-none px-4 mx-4 px-4 text-white bg-zinc-900 hover:bg-zinc-300 hover:text-zinc-900 transition-all duration-200 ease-in-out active:translate-y-1"
 				>
 					{mode === 'apply' ? 'APPLY' : 'EXTRACT'}
 				</button>
@@ -155,7 +158,7 @@
 
 		<section class="mt-5">
 			<h2 class="text-xl">Settings</h2>
-			<div class="pt-4 flex">
+			<div class="pt-4 flex pl-4">
 				<p class="inline border-l-2 border-zinc-300 pl-4">LSB value:</p>
 				<input
 					id="lsb-inp"
@@ -169,44 +172,56 @@
 			</div>
 		</section>
 
-		<section class="mt-5">
-			<div>
+		<section class="mt-5 md:flex w-full">
+			<div class="flex-1">
 				<h2 class="text-xl">Cover Image</h2>
-				<input
-					type="file"
-					class="mt-4 file:bg-orange-300 file:px-4 file:mr-4 file:hover:text-white file:hover:bg-zinc-900 file:transition-all file:duration-200 file:ease-in-out file:border-none outline-none"
-					on:change={handleFile}
-				/>
-				{#if cover_img_url}
-					<img src={cover_img_url} class=" mt-4 w-[200px]" alt="cover" />
+				<div class="pl-4">
+					<input
+						type="file"
+						class="mt-4 file:text-white file:bg-zinc-900 file:hover:bg-zinc-300 file:hover:text-zinc-900 file:px-4 file:mr-4 file:transition-all file:duration-200 file:ease-in-out file:border-none outline-none"
+						on:change={handleFile}
+					/>
+					{#if cover_img_url}
+						<img src={cover_img_url} class=" mt-4 w-[200px]" alt="cover" />
+					{/if}
+				</div>
+			</div>
+			<div class="flex-1">
+				{#if mode === 'apply'}
+					<h2 class="text-xl">Payload</h2>
+					<div class="pl-4">
+						<p class="border-l-2 inline border-zinc-300 pl-4">Payload Type:</p>
+						<button
+							on:click={switchPayloadType}
+							class="px-4 text-white bg-zinc-900 hover:bg-zinc-300 hover:text-zinc-900 transition-all duration-200 ease-in-out active:translate-y-1"
+						>
+							{payload_type === 'image' ? 'Image' : 'Text'}
+						</button>
+						<br />
+						<textarea
+							bind:value={payload}
+							placeholder="Your message here..."
+							class="outline-none border-l-2 border-zinc-300 py-2 px-4 mt-4 w-full md:w-1/2"
+						/>
+					</div>
+				{/if}
+
+				{#if mode === 'extract'}
+					<p class="inline">Payload:</p>
+					{#if payload}
+						<p class="inline">{payload}</p>
+					{/if}
 				{/if}
 			</div>
 		</section>
-
 		<section class="mt-5">
-			{#if mode === 'apply'}
-				<h2 class="text-xl">Payload</h2>
-				<textarea
-					bind:value={payload}
-					placeholder="Your message here..."
-					class="outline-none border-l-2 border-zinc-300 py-2 px-4 mt-4 w-full md:w-1/2"
-				/>
-			{/if}
-
-			{#if mode === 'extract'}
-				<p class="inline">Payload:</p>
-				{#if payload}
-					<p class="inline">{payload}</p>
-				{/if}
-			{/if}
-
 			<br />
 
 			<p class={is_ok ? 'text-green-500' : 'text-red-500'}>{message}</p>
 
 			<button
 				on:click={submit}
-				class="outline-none px-4 bg-amber-300 text-zinc-900 transition-all duration-200 ease-in-out hover:text-white hover:bg-zinc-900 mt-4"
+				class="outline-none px-4 text-white bg-zinc-900 hover:bg-zinc-300 hover:text-zinc-900 transition-all duration-200 ease-in-out active:translate-y-1 mt-4"
 			>
 				{mode === 'apply' ? 'Apply' : 'Extract'}
 			</button>

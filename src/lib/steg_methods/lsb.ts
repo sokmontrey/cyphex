@@ -1,9 +1,10 @@
+import type { ImageData } from 'fast-png';
 import { ErrorCode } from '$lib/utils/error';
 import { type Result, failure, success, createPipe_, ResultWrapper_, SkipIfFailure_, ResultAdapter_, log_ } from '$lib/utils/functional';
 import { createMask, concatUint8Array } from '$lib/utils/steg';
 
 export const apply
-	= (lsb_value: number, payload: Uint8Array, payload_terminator: Uint8Array) =>
+	= ([lsb_value]: number[], payload: Uint8Array, payload_terminator: Uint8Array) =>
 		(cover_data: Uint8ClampedArray): Result<ImageData> => {
 			return createPipe_(
 				SkipIfFailure_(checkLSBValue(lsb_value)),
@@ -15,7 +16,7 @@ export const apply
 		};
 
 export const extract
-	= (lsb_value: number, payload_terminator: Uint8Array) =>
+	= ([lsb_value]: number[], payload_terminator: Uint8Array) =>
 		(cover_data: Uint8ClampedArray): Result<Uint8Array> => {
 			return createPipe_(
 				SkipIfFailure_(checkLSBValue(lsb_value)),

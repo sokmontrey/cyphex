@@ -17,3 +17,23 @@ body {
 .mono-font {
 	font-family: var(--mono);
 }
+
+.pm-btn{
+	@apply outline-none px-4 py-1 text-white bg-zinc-900 hover:bg-zinc-300 hover:text-zinc-900 transition-all duration-200 ease-in-out active:translate-y-1;
+}
+
+.sd-btn{
+	@apply outline-none px-4 py-1 bg-white text-zinc-900 hover:text-zinc-300 hover:bg-zinc-900 transition-all duration-200 ease-in-out active:translate-y-1;
+}
+
+.file-inp {
+	@apply file:mr-4 file:border-none file:outline-none file:px-4 file:py-1 file:text-white file:bg-zinc-900 file:hover:bg-zinc-300 file:hover:text-zinc-900 file:transition-all file:duration-200 file:ease-in-out file:active:translate-y-1;
+}
+
+.inp-lbl {
+	@apply pl-4 border-l-2 border-zinc-300 inline;
+}
+
+.inp {
+	@apply w-[100px] text-zinc-900 pl-2 ;
+}

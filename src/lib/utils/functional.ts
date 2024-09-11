@@ -1,4 +1,4 @@
-import type { ImageData } from '$lib/utils/image';
+import type { ImageData } from 'fast-png';
 import { ErrorCode, createErrorMessage } from '$lib/utils/error';
 
 export type Success<T> = { is_ok: true, value: T };
@@ -48,7 +48,7 @@ export const ImageDataWrapper_
 
 export const ImageDataAdapter_
 	= (f: Function) =>
-		(image_data: ImageData): Result<any> => f(image_data.data);
+		(image_data: ImageData): any => f(image_data.data);
 
 export const SkipIfFailure_
 	= (external_input: Result<any>) =>

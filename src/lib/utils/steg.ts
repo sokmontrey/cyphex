@@ -7,4 +7,17 @@ export const concatUint8Array
 			return result;
 		};
 
+/* 
+ * insert b at the beginning of array a
+ */
+export const insertStartUint8Array
+	= (b: Uint8Array) =>
+		(a: Uint8Array): Uint8Array => {
+			const result = new Uint8Array(b.length + a.length);
+			result.set(b);
+			result.set(a, b.length);
+			return result;
+		};
+
+
 export const createMask = (n: number) => (1 << n) - 1;

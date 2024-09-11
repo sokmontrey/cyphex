@@ -11,6 +11,8 @@ export enum ErrorCode {
 	InvalidLSBValue,
 	UnableToDownloadFile,
 	TerminatorNotFound,
+	InvalidPayloadImageDimension,
+	PayloadIsNotAnImage,
 };
 
 export const createErrorMessage = (err_code: ErrorCode, value: string): string => {
@@ -22,6 +24,13 @@ export const createErrorMessage = (err_code: ErrorCode, value: string): string =
 			return `Unable to read image data`;
 		case ErrorCode.UnableToWriteImageData:
 			return `Unable to write image data`;
+		/* 
+		 * Dealing with payload images 
+		 */
+		case ErrorCode.InvalidPayloadImageDimension:
+			return `Payload image dimensions are not valid.`;
+		case ErrorCode.PayloadIsNotAnImage:
+			return `Payload is not an image.`;
 		/* 
 		 * Dealing with files
 		 */
